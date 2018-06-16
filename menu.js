@@ -15,7 +15,7 @@ function Menu(){
 
   ctx.font = "40px Arial";
   ctx.fillStyle = "red";
-  ctx.fillText("NOME DO JOGO",540,50);
+  ctx.fillText("Space Shooter",540,50);
   ctx.fillText("START",200,200);
     ctx.fillText("SCORE",200,400);
 }

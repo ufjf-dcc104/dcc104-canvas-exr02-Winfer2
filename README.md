@@ -1,1 +1,1 @@
-# JSGameTemplate
+# JSGame02

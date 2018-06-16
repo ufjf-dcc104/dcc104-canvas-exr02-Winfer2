@@ -2,10 +2,13 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <title>template</title>
+    <title>Naves</title>
     <script src="menu.js"></script>
     <script src="score.js"></script>
     <script src="hud.js"></script>
+    <script src="player.js"></script>
+    <script src="imageLibrary.js"></script>
+    <script src="audioLibray.js"></script>
   </head>
   <body>
     <canvas width="1080" height="620">
@@ -16,13 +19,25 @@
         var menu  = new Menu();
         var score = new Score();
         var hud   = new Hud();
+        var player = new Player(25,100,100);
         var dt = anterior = 0;
-        var estado = 0;
-        var pontos = 100;
+        var estado = 2;
+        var pontos = 0;
 
-        var px = 100;
-        var py = 100;
-        var pr = 50;
+        var sondControl = new AudioLibrary();
+
+        var spritesControl = new ImageLibrary();
+        var sp = 0;
+        spritesControl.load(0,"sprites/player1.png");
+        spritesControl.load(1,"sprites/player2.png");
+        spritesControl.load(2,"sprites/player3.png");
+        spritesControl.load(3,"sprites/player4.png");
+        spritesControl.load(4,"sprites/player5.png");
+
+        spritesControl.load(5,"sprites/inimigo1.png");
+        spritesControl.load(6,"sprites/bala.png");
+
+        sondControl.load(0,"sons/Mtiro.wav")
 
         function limparTela() {
             ctx.fillStyle = "black";
@@ -35,22 +50,84 @@
             if(estado === 1) score.desenha(ctx);
             if(estado === 2)
             {
-              hud.desenha(ctx);
-              ctx.beginPath();
-              ctx.arc(this.px,this.py,this.pr,0,2*Math.PI);
-              ctx.fill();
 
-              ctx.beginPath();
-              ctx.arc(400,400,50,0,2*Math.PI);
-              ctx.fill();
 
-              if(colider(this.px,this.py,this.pr,50,400,400))
+              spritesControl.draw(ctx,this.sp,player.x-25,player.y-25)
+              //player.desenha(ctx);
+
+
+              for (i=0;i<this.tiros.length;i++)
               {
-                hud.life--;
+                if(this.tiros[i].y<50){
+                  this.tiros.splice(i,1);
+                }else {
+                  //this.tiros[i].desenha(ctx);
+                  spritesControl.draw(ctx,6,this.tiros[i].x-5,this.tiros[i].y-5)
+                  this.tiros[i].move(dt);
+                }
+              }
+              this.cadencia+=dt;
+              if(this.cadencia>0.2){
+              bullet();
+              this.cadencia=0;
+              }
+              spawn+=dt;
+              spawner();
+
+              for (i=0;i<this.inimigo.length;i++)
+              {
+                if(this.inimigo[i].y>620){
+                  this.inimigo.splice(i,1);
+                }else {
+                  spritesControl.draw(ctx,5,this.inimigo[i].x-25,this.inimigo[i].y-25)
+                  //this.inimigo[i].desenha(ctx);
+                  this.inimigo[i].move(dt);
+                  this.ecadencia[i]+=dt;
+                  if(this.ecadencia[i]>0.5){
+                    ebullet(this.inimigo[i].x,this.inimigo[i].y);
+                    this.ecadencia[i]=0;
+                  }
+                }
+              }
+              for (i=0;i<this.etiros.length;i++)
+              {
+                if(this.etiros[i].y>620){
+                  this.etiros.splice(i,1);
+                }else {
+                  //this.etiros[i].desenha(ctx);
+                  spritesControl.draw(ctx,6,this.etiros[i].x-5,this.etiros[i].y-5)
+                  this.etiros[i].move(dt);
+                  if(colider(player.x,player.y,player.r,this.etiros[i].r,this.etiros[i].x,this.etiros[i].y))
+                  {
+                    hud.life-=10;
+                    this.etiros.splice(i,1);
+                  }
+                }
               }
 
-              this.px = borderX(this.px,this.pr);
-              this.py = borderY(this.py,this.pr);
+              player.move(dt);
+              for (i=0;i<this.inimigo.length;i++)
+              {
+                if(colider(player.x,player.y,player.r,this.inimigo[i].r,this.inimigo[i].x,this.inimigo[i].y))
+                {
+                  hud.life-=10;
+                  this.inimigo.splice(i,1);
+                }
+                else for (j=0;j<this.tiros.length;j++)
+                {
+                  if(colider(this.tiros[j].x,this.tiros[j].y,this.tiros[j].r,this.inimigo[i].r,this.inimigo[i].x,this.inimigo[i].y))
+                  {
+                    this.inimigo.splice(i,1);
+                    this.tiros.splice(j,1);
+                    this.pontos+=10;
+                    break;
+                  }
+                }
+              }
+
+              player.x = borderX(player.x,player.r);
+              player.y = borderY(player.y,player.r);
+              hud.desenha(ctx);
             }
 
             verificaFim();
@@ -62,8 +139,10 @@
 
         function verificaFim(){
           if (hud.life<1){
-            score.placar.push(pontos);
+            score.placar.push(this.pontos);
             hud.life=200;
+            this.pontos=0;
+            this.estado=0;
           }
         }
         function colider(xa,ya,ra,rb,xb,yb){
@@ -84,9 +163,37 @@
         function borderY(y,r){
           if(y+r>620)
             y=620-r-1;
-          if(y-r<0)
-            y=0+r+1;
+          if(y-r<50)
+            y=50+r+1;
           return y
+        }
+
+
+        var cadencia = 0;
+        this.tiros = [];
+        var atirar = false;
+        function bullet(){
+          if (this.atirar) {
+            this.tiros.push(new Player(5,player.x,player.y-30,0,-500));
+            sondControl.play(0);
+
+          }
+        }
+        var spawn = 0;
+        this.inimigo = [];
+        function spawner(){
+          if(this.spawn>0.6){
+            this.inimigo.push(new Player(25,(80+1000*Math.random()),50,(100-200*Math.random()),200));
+            this.ecadencia.push(0);
+            this.spawn = 0;
+          }
+        }
+
+
+        this.etiros = [];
+        this.ecadencia = [];
+        function ebullet(x,y){
+          this.etiros.push(new Player(5,x,y,0,500));
         }
 
         addEventListener("keydown", function (e) {
@@ -95,17 +202,24 @@
           else{
             switch (e.keyCode) {
                 case 37:
-                this.px-=1;
+                player.vx=-200;
+                this.sp=3;
                   break;
                 case 39:
-                this.px+=1;
+                player.vx=200;
+                this.sp=4;
                   break;
                 case 38:
-                this.py-=1;
+                player.vy=-200;
+                this.sp=1;
                   break;
                 case 40:
-                this.py+=1;
+                player.vy=200;
+                this.sp=2;
                   break;
+                case 32:
+                this.atirar=true;
+                break;
                 default:
                   break;
             }
@@ -113,14 +227,25 @@
         });
         addEventListener("keyup", function (e) {
             switch (e.keyCode) {
-                case 37:
-                  break;
-                case 39:
-                  break;
-                case 38:
-                  break;
-                case 40:
-                  break;
+              case 37:
+              player.vx=-0;
+              this.sp=0;
+                break;
+              case 39:
+              player.vx=0;
+              this.sp=0;
+                break;
+              case 38:
+              player.vy=-0;
+              this.sp=0;
+                break;
+              case 40:
+              player.vy=0;
+              this.sp=0;
+                break;
+                case 32:
+                this.atirar=false;
+                break;
                 case 27:
                   estado = 0;
                   break;
